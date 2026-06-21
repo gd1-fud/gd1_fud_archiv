@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>GD1</title>
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+  <link rel="dns-prefetch" href="https://res.cloudinary.com">
+  <!-- FAVICON: malá ikonka stránky (záložka prohlížeče / plocha telefonu).
+       Soubor je ve složce assets jako "favicon.png". -->
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <style>
+    /* ★★★ FONTY — DŮLEŽITÉ ★★★
+       V tom samém adresáři jako tento soubor musí být složka "fonts/"
+       a v ní PŘESNĚ tyto 4 soubory (zkontroluj názvy znak po znaku!):
+
+           fonts/Denim-Regular.otf      ← běžný text (váha 400)
+           fonts/Denim-Medium.otf       ← tučnější nadpisy (váha 500)
+           fonts/DMMono-Regular.ttf     ← popisky / mono (váha 400)
+           fonts/DMMono-Medium.ttf      ← mono tučné (váha 500)
+
+       Aby se fonty PŘIPOJILY, i kdyby tvoje soubory měly náhodou
+       druhou příponu (.ttf místo .otf nebo naopak), je u každého
+       uvedená OBĚ varianta. Prohlížeč si vezme tu, která ve složce
+       opravdu je — tu druhou prostě přeskočí. Takže to bude fungovat
+       tak jako tak; jen DODRŽ názvy (Denim-Regular, Denim-Medium,
+       DMMono-Regular, DMMono-Medium). */
+    @font-face {
+      font-family: 'Denim';
+      src: url('fonts/Denim-Regular.otf') format('opentype'),
+           url('fonts/Denim-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Denim';
+      src: url('fonts/Denim-Medium.otf') format('opentype'),
+           url('fonts/Denim-Medium.ttf') format('truetype');
+      font-weight: 500; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'DM Mono';
+      src: url('fonts/DMMono-Regular.ttf') format('truetype'),
+           url('fonts/DMMono-Regular.otf') format('opentype');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'DM Mono';
+      src: url('fonts/DMMono-Medium.ttf') format('truetype'),
+           url('fonts/DMMono-Medium.otf') format('opentype');
+      font-weight: 500; font-style: normal; font-display: swap;
+    }
+
+    :root {
+      --bg: #000000;
+      --text: #ffffff;
+      --black: #000000;
+      --white: #ffffff;
+      --fluo: #FF4709;
+      --wall-offset: 8vw;
+      --perspective: 520px;
+      --left-wall-angle: 90deg;
+      --right-wall-angle: -90deg;
+      --scene-scale: 1;
+      --scene-y: 0px;
+      --bar-h: 56px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: 'Denim', Helvetica, Arial, sans-serif;
+      font-weight: 400; overflow: hidden;
+      overscroll-behavior: none; overscroll-behavior-y: none;
+      touch-action: none;          /* žádný nativní scroll → žádný pull-to-refresh / reload */
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      position: fixed; inset: 0;   /* plné uzamčení – brání pull-to-refresh / reloadu na mobilu */
+    }
+
+    a { color: inherit; text-decoration: none; outline: none; }
+
+    /* =========================================================
+       NAV / MENU
+       ========================================================= */
+    .nav-panel {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--bar-h);
+      z-index: 1600; overflow: hidden; background: var(--black); color: var(--white);
+      transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body.menu-open .nav-panel {
+      height: calc(100vh - 240px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .nav-bar {
+      height: var(--bar-h); display: flex; justify-content: space-between;
+      align-items: center; padding: 0 40px;
+    }
+    .nav-corner-title {
+      font-family: 'Denim', sans-serif; font-size: 13px;
+      letter-spacing: 0.02em; text-transform: uppercase; font-weight: 400;
+    }
+    .menu-toggle {
+      width: 40px; height: var(--bar-h); display: flex; align-items: center;
+      justify-content: flex-end; border: 0; padding: 0; background: transparent;
+      color: var(--white); cursor: pointer; position: relative;
+    }
+    .menu-lines { position: relative; display: block; width: 40px; height: 9px; }
+    .menu-line {
+      position: absolute; left: 0; width: 100%; height: 1px; background: currentColor;
+      transition: transform 0.3s ease, top 0.3s ease, background-color 0.2s ease;
+    }
+    .menu-toggle:hover .menu-line,
+    .menu-toggle:focus-visible .menu-line,
+    .menu-toggle:active .menu-line,
+    body.menu-open .menu-toggle .menu-line { background: var(--fluo); }
+    .menu-line:first-child { top: 0; }
+    .menu-line:last-child { top: 8px; }
+    body.menu-open .menu-line:first-child { top: 4px; transform: rotate(10deg); }
+    body.menu-open .menu-line:last-child { top: 4px; transform: rotate(-10deg); }
+
+    .menu-content {
+      display: grid; grid-template-columns: 1.15fr 0.85fr;
+      padding: 40px 40px 64px; height: calc(100% - var(--bar-h));
+      opacity: 0; transform: translateY(-10px);
+      transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+      pointer-events: none; overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    body.menu-open .menu-content { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    .menu-col-left { display: flex; flex-direction: column; padding-right: 40px; }
+    .menu-col-right { display: flex; flex-direction: column; position: relative; }
+
+    .menu-headline {
+      font-family: 'Denim', sans-serif; font-weight: 500;
+      font-size: clamp(40px, 5.5vw, 76px); line-height: 1.05;
+      margin-bottom: 40px; letter-spacing: 0.01em;
+    }
+    .text-grid-row { display: grid; grid-template-columns: 120px 1fr; margin-bottom: 30px; }
+    .row-label {
+      font-family: 'DM Mono', sans-serif; font-weight: 500; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px;
+    }
+    .row-content {
+      font-family: 'Denim', sans-serif; font-size: 12px; line-height: 1.45;
+      letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.85); max-width: 480px;
+    }
+    .row-content p { margin-bottom: 16px; }
+
+    .hover-target { transition: color 0.2s ease, text-decoration-color 0.2s ease; cursor: pointer; }
+    .hover-target .svg-arrow { transition: stroke 0.2s ease; }
+    .hover-target:hover, .hover-target:focus-visible, .hover-target:active,
+    .hover-target:hover .underline-text, .hover-target:focus-visible .underline-text,
+    .hover-target:active .underline-text { color: var(--fluo); text-decoration-color: var(--fluo) !important; }
+    .hover-target:hover .svg-arrow, .hover-target:focus-visible .svg-arrow,
+    .hover-target:active .svg-arrow { stroke: var(--fluo); }
+
+    .off-web-link {
+      align-self: flex-start; display: flex; flex-direction: column;
+      font-family: 'DM Mono', sans-serif; font-size: 10px; line-height: 1.5;
+      letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 30px;
+    }
+    .off-web-link .svg-arrow { align-self: flex-start; margin-bottom: 8px; }
+    .underline-text {
+      text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+      text-decoration-color: rgba(255, 255, 255, 0.5); transition: text-decoration-color 0.2s ease;
+    }
+    .contact-intro-text {
+      font-family: 'DM Mono', sans-serif; text-transform: uppercase; font-size: 10px;
+      letter-spacing: 0.05em; line-height: 1.5; color: rgba(255,255,255,0.7); margin-bottom: 20px;
+    }
+    .contact-email {
+      display: block; font-family: 'Denim', sans-serif; font-size: 12px;
+      letter-spacing: 0.03em; color: var(--white); text-decoration: underline;
+      text-underline-offset: 3px; text-decoration-thickness: 1px;
+      text-decoration-color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; text-transform: uppercase;
+    }
+    .newsletter-block { max-width: 480px; margin-top: 30px; }
+    .newsletter-headline {
+      font-family: 'DM Mono', sans-serif; font-size: 24px; line-height: 1.1;
+      font-weight: 500; letter-spacing: 0.02em; margin-bottom: 12px;
+      display: inline-flex; align-items: flex-end;
+    }
+    .newsletter-headline .underline-text { text-decoration-thickness: 2px; }
+    .newsletter-headline .inline-arrow { margin-left: 8px; transform: translateY(-2px); }
+    .newsletter-text {
+      font-family: 'DM Mono', sans-serif; font-size: 10px; line-height: 1.5;
+      letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* =========================================================
+       BOTTOM UI
+       ========================================================= */
+    .floating-address {
+      position: fixed; top: 90px; left: 32%;
+      font-family: 'DM Mono', sans-serif; font-size: 10px; line-height: 1.5;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--white);
+      z-index: 100; pointer-events: none; transition: opacity 0.3s;
+    }
+
+    .bottom-interface {
+      position: fixed; bottom: 40px; left: 0; width: 100%;
+      display: flex; justify-content: center; z-index: 100; pointer-events: none;
+    }
+    .bottom-strict-grid {
+      display: grid; grid-template-columns: 210px 210px;
+      grid-template-rows: auto auto auto;
+      grid-template-areas: "hint empty1" "btn-left btn-right" "empty2 desc";
+      pointer-events: auto;
+    }
+    .scroll-hint-text {
+      grid-area: hint; font-family: 'DM Mono', sans-serif; font-weight: 400;
+      font-size: 13px; line-height: 1.3; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--fluo); margin-bottom: 12px;
+    }
+    .btn {
+      display: flex; justify-content: space-between; align-items: center;
+      width: 210px; height: 72px; padding: 0 20px 0 24px;
+      font-family: 'DM Mono', sans-serif; font-weight: 500; font-size: 20px;
+      line-height: 1.1; text-transform: uppercase; cursor: pointer;
+      transition: all 0.2s ease; position: relative;
+    }
+    .btn-text { text-align: left; }
+    .btn-white { grid-area: btn-left; background: var(--white); color: var(--black); border: 1px solid var(--white); z-index: 1; }
+    .btn-white:hover, .btn-white:focus-visible, .btn-white:active { background: var(--fluo); border-color: var(--fluo); color: var(--black); }
+    .btn-outline { grid-area: btn-right; background: var(--black); color: var(--white); border: 1px solid var(--white); margin-left: -1px; z-index: 1; }
+    .btn-outline .svg-arrow { transition: stroke 0.2s ease; }
+    .btn-outline:hover, .btn-outline:focus-visible, .btn-outline:active { border-color: var(--fluo); color: var(--fluo); z-index: 2; }
+    .btn-outline:hover .svg-arrow, .btn-outline:focus-visible .svg-arrow, .btn-outline:active .svg-arrow { stroke: var(--fluo); }
+    .bottom-desc {
+      grid-area: desc; font-family: 'Denim', sans-serif; font-size: 13px;
+      line-height: 1.35; letter-spacing: 0.01em; color: var(--white);
+      text-align: left; margin-top: 16px; width: 380px;
+    }
+    .svg-arrow { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.2; fill: none; stroke-linecap: square; stroke-linejoin: miter; }
+    .svg-arrow-up { width: 26px; height: 26px; stroke-width: 1.2; }
+    .svg-arrow-up-right { width: 24px; height: 24px; stroke-width: 1.2; }
+
+    /* =========================================================
+       3D TUNEL
+       ========================================================= */
+    .stage {
+      position: fixed; inset: 0; overflow: hidden;
+      perspective: var(--perspective); perspective-origin: 50% 50%;
+      background: #000; touch-action: none;
+    }
+    /* Vrstva "tmy v dálce" – leží nad chodbou, ale POD ovládáním (tlačítka,
+       menu, text). Na desktopu průhledná (PC se nemění). Na mobilu dostane
+       níže v @media radiální přechod do černa = konec tunelu mizí do tmy. */
+    .tunnel-fade {
+      position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      background: transparent;
+    }
+    .tunnel-scene {
+      position: absolute; inset: 0; transform-style: preserve-3d;
+      transform: translateY(var(--scene-y)) scale(var(--scene-scale));
+      transform-origin: center center;
+    }
+    .tunnel-wall {
+      position: absolute; top: 0; width: 1px; height: 100vh;
+      transform-style: preserve-3d; backface-visibility: hidden;
+      /* ODSTRANĚNO will-change: na iOS nutilo celou stěnu (stovky karet) do
+         jedné obří GPU vrstvy → pád paměti a reload. */
+    }
+    .w-left-tunnel { left: var(--wall-offset); transform-origin: left center; transform: rotateY(var(--left-wall-angle)); }
+    .w-right-tunnel { right: var(--wall-offset); transform-origin: right center; transform: rotateY(var(--right-wall-angle)) scaleX(-1); }
+    .tunnel-track {
+      position: absolute; left: 0; top: 0; width: 1px; height: 100vh;
+      transform-style: preserve-3d; backface-visibility: hidden;
+    }
+    .t-card {
+      position: absolute; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; box-shadow: none;
+      transform-style: preserve-3d; transform-origin: center center;
+      backface-visibility: hidden; contain: layout paint style;
+      /* ODSTRANĚNO: will-change: transform - toto způsobovalo pád paměti a black screen na iOS! */
+    }
+    .t-media {
+      width: 100%; height: 100%; display: block; pointer-events: none;
+      backface-visibility: hidden; object-fit: contain;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .t-media.is-visible { opacity: 1; }
+    img.t-media:not([src]), video.t-media:not([src]) { visibility: hidden; opacity: 0; }
+
+    .preloader {
+      position: fixed; inset: 0; z-index: 2000; display: flex;
+      align-items: center; justify-content: center; background: var(--bg);
+      color: var(--white); font-family: 'DM Mono', sans-serif;
+      font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .preloader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (min-width: 1440px) {
+      :root { --wall-offset: 10vw; --perspective: 590px; }
+      .nav-bar { padding: 0 52px; }
+      .floating-address { left: 34%; }
+      .bottom-interface { bottom: 54px; }
+      .menu-headline { font-size: clamp(58px, 4.8vw, 88px); }
+    }
+
+    @media (max-width: 1024px) {
+      :root { --wall-offset: 14vw; --perspective: 660px; --left-wall-angle: 80deg; --right-wall-angle: -80deg; --scene-scale: 0.94; }
+      body.menu-open .nav-panel { height: 100dvh; }
+      /* Když je menu otevřené, černý panel přes celou výšku scénu stejně zakryje.
+         Schováme tedy 3D chodbu → grafika se uvolní a LIŠTA se vysune plynule
+         a netrhá se. Po zavření se scéna hned vrátí (nemizí, jen se nekreslí). */
+      body.menu-open .stage { visibility: hidden; }
+      .nav-bar { padding: 0 24px; }
+      .menu-content { grid-template-columns: 1fr; gap: 34px; height: calc(100dvh - var(--bar-h)); padding: 28px 24px 40px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      .menu-col-left, .menu-col-right { padding-right: 0; gap: 28px; }
+      .menu-headline { font-size: clamp(38px, 8vw, 72px); margin-bottom: 28px; }
+      .text-grid-row { grid-template-columns: 92px 1fr; gap: 18px; }
+      .row-content { max-width: 680px; font-size: 13px; }
+      .floating-address { top: 82px; left: 24px; }
+      .bottom-interface { bottom: max(22px, env(safe-area-inset-bottom)); padding: 0 24px; }
+      .bottom-strict-grid { width: min(100%, 430px); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .btn { width: 100%; height: 68px; font-size: clamp(17px, 2.4vw, 20px); padding: 0 18px; }
+      .bottom-desc { width: min(100%, 380px); font-size: 12px; }
+    }
+
+    /* =========================================================
+       MOBILNÍ ZOBRAZENÍ - PŘESNĚ DLE VIZUALIZACE
+       Klíčové proměnné pro doladění úhlu chodby najdeš zde:
+         --wall-offset  : záporná hodnota = panty stěn jdou mimo
+                          obraz → uprostřed vznikne černý kanál (jako
+                          na vizualizaci) a stěny se NEKŘÍŽÍ.
+         --*-wall-angle : sklon stěn (blíž k 90° = plošší, víc do dálky)
+         --perspective  : hloubka mizení (nižší = rychlejší ztrácení do
+                          ztracena / silnější perspektiva)
+       ========================================================= */
+    @media (max-width: 700px) {
+      :root {
+        --bar-h: 52px;
+
+        /* ┌──────────────────────────────────────────────┐
+           │  LADICÍ PÁČKY MOBILU – měň jen čísla níže     │
+           └──────────────────────────────────────────────┘ */
+
+        /* (1) ÚHEL STĚN – jak moc jsou fotky vidět.
+              NÍŽ (např. 82°) = stěny natočené víc k tobě = fotky víc vidět.
+              Blíž k 90° = silnější perspektiva / víc do dálky.
+              PRAVÁ = stejné číslo s mínusem! */
+        --left-wall-angle: 84deg;
+        --right-wall-angle: -84deg;
+
+        /* (2) ★★ TMA / KONEC PRŮCHODU — TVOJE HLAVNÍ PÁČKA NA „HLOUBKU" ★★
+              Tohle je ta tmavá část, do které mizí stěny na konci chodby.
+              Reguluje přesně to, co řešíš:
+
+              • VYŠŠÍ číslo (např. 28, 30) = tma je VĚTŠÍ / blíž
+                → schová, že se stěny v dálce sbíhají a kříží.
+                Ale když přeženeš, začne ukrajovat i z projektů.
+
+              • NIŽŠÍ číslo (např. 20, 18) = tma je MENŠÍ / dál
+                → vidíš hlouběji a víc projektů,
+                ale může začít prosvítat sbíhání stěn.
+
+              Hledáš zlatý střed: dost vysoko, aby nebylo vidět křížení,
+              ale ne tak, aby zmizely projekty. Začni na 24 a posouvej
+              po 2 nahoru/dolů, dokud to nesedne. */
+        --tunnel-dark: 17;
+
+        /* (3) SÍLA PERSPEKTIVY / hloubka tunelu (necháno mírné).
+              Vyšší = mírnější a delší tunel; nižší = strmější perspektiva. */
+        --perspective: 440px;
+
+        /* (4) Posun stěn. NECH NA 0px (drží stěny u krajů, nekříží se). */
+        --wall-offset: 0px;
+
+        --scene-scale: 1;
+        --scene-y: 0px;
+      }
+      .t-card {
+        /* (5) VELIKOST OBRAZŮ. Tohle je plynulá hodnota při plných stěnách
+              (44 fotek). VYŠŠÍ = větší obrazy, ale TĚŽŠÍ pro grafiku telefonu
+              → může začít sekat. Když to tvůj telefon utáhne, přidávej po 2-3. */
+        max-width: 80vw;
+        max-height: 120vh;
+      }
+      /* Aktivace tmy v dálce – úzký svislý pruh uprostřed (řízeno páčkou (2)).
+         Schová křížení stěn v úběžníku, fotky po stranách nechá vidět. */
+      .tunnel-fade {
+        background: radial-gradient(
+          calc(var(--tunnel-dark) * 1.0vw) calc(var(--tunnel-dark) * 2.3vh) at 50% 48%,
+          #000 0%, #000 28%, transparent 100%);
+      }
+      .t-media { transition: opacity 0.22s ease; }
+      .nav-bar { padding: 0 16px; }
+      .nav-corner-title { font-size: 11px; }
+      .menu-toggle, .menu-lines { width: 34px; }
+      .menu-content { padding: 22px 16px 92px; }
+      .menu-headline { font-size: clamp(31px, 11vw, 50px); line-height: 1; }
+      .text-grid-row { display: block; margin-bottom: 24px; }
+      .row-label { display: block; margin-bottom: 10px; }
+      .row-content, .contact-email { font-size: 12px; }
+      .row-content br, .contact-intro-text br, .newsletter-text br, .bottom-desc br, .underline-text br { display: none; }
+      .newsletter-headline { font-size: 22px; }
+      .floating-address { top: 76px; left: 16px; max-width: calc(100vw - 32px); font-size: 9px; }
+
+      .bottom-interface {
+        bottom: max(14px, env(safe-area-inset-bottom));
+        padding: 0 14px;
+        width: 100%;
+      }
+      .bottom-strict-grid {
+        width: 100%;
+        grid-template-columns: 1fr 1fr; /* Tlačítka sdílí přesně půlku prostoru */
+        grid-template-areas: "hint hint" "btn-left btn-right" "desc desc";
+        gap: 0;
+      }
+      .scroll-hint-text {
+        text-align: center;
+        width: 100%;
+        font-size: 11px;
+        margin-bottom: 16px;
+      }
+      .btn {
+        width: 100% !important;
+        height: 64px;
+        min-width: 0;
+        padding: 0 14px;
+        font-size: clamp(14px, 4.3vw, 17px);
+      }
+      .btn-outline {
+        margin-left: -1px;
+      }
+      .svg-arrow-up, .svg-arrow-up-right { width: 22px; height: 22px; }
+      .bottom-desc {
+        width: 100%;
+        max-width: 100%;
+        text-align: center;
+        justify-self: center;
+        margin-top: 14px;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+    }
+
+    @media (max-width: 420px) {
+      /* Stejné páčky jako výše, jen jemně doladěné pro malé telefony. */
+      :root { --left-wall-angle: 84deg; --right-wall-angle: -84deg; --tunnel-dark: 22; --perspective: 430px; --wall-offset: 0px; --scene-scale: 1; }
+      .t-card { max-width: 64vw; max-height: 96vh; }
+    }
+
+    @media (hover: none) {
+      .menu-toggle:hover .menu-line { background: currentColor; }
+      body.menu-open .menu-toggle .menu-line, .menu-toggle:active .menu-line { background: var(--fluo); }
+    }
+  </style>
+</head>
+<body>
+  <div id="preloader" class="preloader">LOADING</div>
+
+  <header class="nav-panel" id="navPanel">
+    <div class="nav-bar">
+      <div class="nav-corner-title">ATELIÉR GRAFICKÝ DESIGN I.</div>
+      <button id="menuToggle" class="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">
+        <span class="menu-lines" aria-hidden="true">
+          <span class="menu-line"></span>
+          <span class="menu-line"></span>
+        </span>
+      </button>
+    </div>
+
+    <div class="menu-content">
+      <div class="menu-col-left">
+        <h1 class="menu-headline">A GALAXY OF<br>SHARED QUESTIONS</h1>
+        <div class="text-grid-row">
+          <span class="row-label">O ATELIÉRU</span>
+          <div class="row-content">
+            <p>Před pěti lety jsme poprvé převzali vedení ateliéru GD1 a náš plán byl jasný.<br>Chtěli jsme podporovat tvůrčí a komplexní myšlení studentů, ptát po smyslu zažitých stereotypů — hledat a redefinovat dílčí složky grafického designu. Také vytvořit pomyslnou galaxii složenou z odborníků v oboru, hostů a studentů. Udělali jsme velký krok od autoritativního vedení ateliéru směrem ke společné diskuzi a hledání aktuálních témat.</p>
+            <p>Five years ago we took over the leadership of GD1 studio and our vision was clear. We wanted to nurture creative and complex thinking in students, to question the logic of established conventions — to identify and redefine the individual elements of graphic design. To build an imaginary galaxy of field professionals, guests and students. We made a decisive shift away from authoritative studio leadership towards shared discussion and the search for relevant themes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-col-right">
+        <a href="https://fud.ujep.cz" target="_blank" class="off-web-link hover-target">
+          <svg class="svg-arrow" viewBox="0 0 24 24"><path d="M7 7h10v10M17 7L7 17"/></svg>
+          <span class="underline-text">OFICIÁLNÍ WEB ATELIÉRU / OFFICIAL STUDIO WEBSITE.</span>
+        </a>
+        <div class="text-grid-row">
+          <span class="row-label">KONTAKT</span>
+          <div class="row-content">
+            <p class="contact-intro-text">PORTFOLIA, SPOLUPRÁCE, NABÍDKY NEBO DOTAZY /<br>PORTFOLIOS, COLLABORATIONS, OFFERS OR QUESTIONS:</p>
+            <a href="mailto:marek.fanta@ujep.cz" class="contact-email hover-target">MAREK.FANTA@UJEP.CZ (MAREK FANTA)</a>
+            <a href="mailto:adam.uchytil@ujep.cz" class="contact-email hover-target">ADAM.UCHYTIL@UJEP.CZ (ADAM UCHYTIL)</a>
+          </div>
+        </div>
+        <div class="newsletter-block">
+          <div class="newsletter-headline hover-target">
+            <span class="underline-text">SUBSCRIBE<br>NEWSLETTER</span>
+            <svg class="svg-arrow inline-arrow" viewBox="0 0 24 24"><path d="M7 7h10v10M17 7L7 17"/></svg>
+          </div>
+          <p class="newsletter-text">NOVINKY Z ATELIÉRU: KLAUZURY, PROJEKTY, VÝSTAVY A OPEN CALLY /<br>STUDIO NEWS: FINAL WORKS, PROJECTS, EXHIBITIONS AND OPEN CALLS.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="floating-address">
+    ATELIÉR GRAFICKÝ DESIGN 1 / FAKULTA<br>
+    UMĚNÍ A DESIGNU / UNIVERZITA J. E.<br>
+    PURKYNĚ V ÚSTÍ NAD LABEM
+  </div>
+
+  <div class="bottom-interface">
+    <div class="bottom-strict-grid">
+      <div class="scroll-hint-text">SCROLL. FEEL THE VISION.<br>ENTER THE SPACE.</div>
+      <button class="btn btn-white" type="button" onclick="window.open('https://gd1archive.tumblr.com', '_blank')">
+        <span class="btn-text">ENTER<br>ARCHIV</span>
+        <svg class="svg-arrow svg-arrow-up" viewBox="0 0 24 24"><path d="M12 21V4M6 10l6-6 6 6"/></svg>
+      </button>
+      <button class="btn btn-outline" type="button" onclick="window.open('https://www.instagram.com/gd1_fud/', '_blank')">
+        <span class="btn-text">ENTER<br>INSTAGRAM</span>
+        <svg class="svg-arrow svg-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17L17 7M7 7h10v10"/></svg>
+      </button>
+      <div class="bottom-desc">
+        archiv identity, typografie, tisku, obrazů a prostoru /<br>
+        archive of identities, type, print, screens and spaces.
+      </div>
+    </div>
+  </div>
+
+  <main class="stage" aria-label="GD1">
+    <div class="tunnel-scene" aria-hidden="true">
+      <div class="tunnel-wall w-left-tunnel">
+        <div class="tunnel-track" id="tunnel-track-left"></div>
+      </div>
+      <div class="tunnel-wall w-right-tunnel">
+        <div class="tunnel-track" id="tunnel-track-right"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Vrstva tmy v dálce: nechá střed/konec tunelu mizet do černa, takže se
+       stěny v perspektivě opticky NEDOTÝKAJÍ. Aktivní jen na mobilu. -->
+  <div class="tunnel-fade" aria-hidden="true"></div>
+
+  <script>
+    /* =========================================================
+       VIEWPORT PROFILE
+       ========================================================= */
+    function getViewportProfile() {
+      const width = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+      const coarse = window.matchMedia("(pointer: coarse)").matches;
+
+      if (width <= 700) {
+        /* MOBILNÍ PROFIL
+           - méně současně načtených médií = ŽÁDNÝ pád paměti / reload na iOS
+           - větší rozestup (blockLength) = méně obrazů na stěně, ale větší
+           - videa zůstávají hrát i když k nim dojedeš blízko */
+        return {
+          isMobileCorridor: true,
+          blockLength: 7600, scrollSpeed: 1.0,
+          maxPreparedImages: 20, imagePrepareDistance: 3800,
+          maxPreparedVideos: 2, maxPlayingVideos: 1,
+          videoPrepareDistance: 3000, videoPlayDistance: 2600,
+          warmupCriticalVideos: 1, retryIntervalMs: 1000,
+          cardScale: width <= 420 ? 1.12 : 1.22, heroScale: 0.98,
+          focusPoint: 680, initialImageCount: 8,
+          dragMultiplier: coarse ? 2.7 : 3.1,
+
+          /* ┌──────────────────────────────────────────────────────┐
+             │  PLYNULOST MOBILU (6) — „kam až se karty kreslí"      │
+             │  Tohle je hlavní páčka proti SEKÁNÍ na telefonu.      │
+             │  Karty, které jsou DÁL než cullFar (hluboko v tunelu, │
+             │  stejně schované za tmou), se přestanou kreslit →     │
+             │  telefon má míň práce → plyne to. Blízké karty (celé  │
+             │  stěny, co vidíš) zůstanou VŽDY plné.                 │
+             │                                                       │
+             │  cullFar VYŠŠÍ = vidíš o kousek hlouběji, ale telefon │
+             │           má víc práce (může začít sekat).            │
+             │  cullFar NIŽŠÍ = plynulejší, ale neřeš pod ~3500,     │
+             │           to už by karty mizely moc brzy.             │
+             │  → Pokud to ještě seká: zkus 4200 nebo 3800.          │
+             │  → Pokud někde „probliknou" mizící karty: dej 5200.   │
+             └──────────────────────────────────────────────────────┘ */
+          cullFar: 4300,
+          cullNear: -700,   /* za kamerou — nech být */
+        };
+      }
+      if (width <= 1024) {
+        return {
+          blockLength: 9800, scrollSpeed: 1.75,
+          maxPreparedImages: 48, imagePrepareDistance: 6800,
+          maxPreparedVideos: 5, maxPlayingVideos: 4,
+          videoPrepareDistance: 4500, videoPlayDistance: 3600,
+          warmupCriticalVideos: 1, retryIntervalMs: 700,
+          cardScale: 0.74, heroScale: 0.94,
+          focusPoint: 1350, initialImageCount: 16,
+          dragMultiplier: coarse ? 3.4 : 4,
+        };
+      }
+      return {
+        blockLength: width >= 1440 ? 12800 : 11200,
+        scrollSpeed: width >= 1440 ? 1.9 : 2,
+        maxPreparedImages: width >= 1440 ? 64 : 56,
+        imagePrepareDistance: width >= 1440 ? 9200 : 8200,
+        maxPreparedVideos: width >= 1440 ? 7 : 6,
+        maxPlayingVideos: width >= 1440 ? 5 : 4,
+        videoPrepareDistance: width >= 1440 ? 5800 : 5200,
+        videoPlayDistance: width >= 1440 ? 4600 : 4000,
+        warmupCriticalVideos: 1, retryIntervalMs: 700,
+        cardScale: width >= 1440 ? 0.96 : 0.9, heroScale: width >= 1440 ? 1.08 : 1,
+        focusPoint: 1900, initialImageCount: 18,
+        dragMultiplier: 4,
+      };
+    }
+
+    const CONFIG = { cloneCount: 3, leftSeed: 113, rightSeed: 1291, preloaderMinimumMs: 800, ...getViewportProfile() };
+    // Načti média JEDNOU a už s nimi za běhu nehýbej → scroll je čistě pohyb
+    // (GPU), žádné dekódování ani uvolňování = žádné záseky ani po hodině.
+    // Na mobilu je redukovaná sada (málo unikátních, malé rozměry) → bezpečné
+    // držet vše v paměti. 3 kopie jednoho obrázku sdílí jednu dekódovanou bitmapu.
+    CONFIG.persistImages = true;
+    CONFIG.persistVideos = CONFIG.isMobileCorridor;
+
+    /* =========================================================
+       CLOUDINARY URL TUNING
+       Na mobilu menší rozměry = méně dekódované paměti = stabilita.
+       ========================================================= */
+    function tuneDeliveryUrl(url) {
+      // Šířky stahovaných médií. NIŽŠÍ = méně dekódované paměti v GPU =
+      // méně "černých záseků" (prohlížeč nemusí zahazovat a překreslovat scénu)
+      // a plynulejší chod na slabších počítačích / v Chrome. Vizuálně nepoznáš
+      // rozdíl – karty jsou na stěnách v perspektivě a menší. MOBIL zůstal
+      // beze změny (500/320), aby se nesáhlo na funkční mobilní zobrazení.
+      // MOBIL: menší rozměry = méně paměti v grafice = telefon to PŘESTANE
+      // překreslovat ("reloadovat") a obrazy nemizí. V pohybující se chodbě
+      // je rozdíl v ostrosti neznatelný. (Desktop/tablet beze změny.)
+      const imageWidth = CONFIG.isMobileCorridor ? 400 : CONFIG.cardScale < 0.7 ? 720 : CONFIG.cardScale < 0.85 ? 860 : 1000;
+      const videoWidth = CONFIG.isMobileCorridor ? 300 : CONFIG.cardScale < 0.7 ? 560 : CONFIG.cardScale < 0.85 ? 700 : 840;
+      const transform = url.includes("/video/upload/")
+        ? `f_auto,q_auto:eco,w_${videoWidth},c_limit`
+        : `${CONFIG.isMobileCorridor ? "f_auto,q_auto:eco" : "f_auto,q_auto"},w_${imageWidth},c_limit`;
+      return url.replace(/\/(image|video)\/upload\/(?:[^/]+\/)*v/, (match, type) => `/${type}/upload/${transform}/v`);
+    }
+
+    const files = [
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030413/01_gytbsf.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030426/02_vkwpqh.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030437/03_ahoqzd.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030443/04_oqak7o.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030450/05_tmbidh.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030455/06_i1dpdh.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030466/07_g4n2ga.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030471/08_a61vs0.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030481/09_i7nvjw.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030491/10_t2kc55.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030495/11_yzad3q.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030500/12_icqlbh.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030504/13_mgfrdq.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030552/14_qai5pb.webp",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781030562/15_nrknbl.webp",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030588/16_f4dsqq.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030608/17_trpqqy.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030626/19_mgfi1g.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030637/20_hrwrjm.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030648/21_fx9cbk.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030663/22_qcwa00.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030679/23_pyw1ya.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781030698/24_bckhnd.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781043085/25_hxles1.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781043116/26_xze10d.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781043147/27_suvb8l.mp4",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781043196/28_pq6ucu.mp4",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043200/29_momskm.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043204/30_h6s9ib.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043208/31_lb6dbk.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043214/32_kkerob.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043218/33_crbgbo.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043220/34_hwetsg.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043222/35_bbzjoh.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043226/36_dx3ned.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043228/37_f1t0nq.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043231/38_wpq30k.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043234/39_htke1k.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043237/40_qppfci.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043240/41_iddfnp.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043243/42_hraeif.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043246/43_kvnnic.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043250/44_ffxycg.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043253/45_boh81k.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043255/46_a514cd.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043266/48_ac5lrf.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043284/49_mwndlm.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043288/50_aefjhx.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043294/51_xywaqc.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043309/52_jenupn.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043313/53_npkxmr.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043317/54_zwevlg.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043320/55_iw2n2p.jpg",
+      "https://res.cloudinary.com/dic1fjncp/video/upload/q_auto/f_auto/v1781043349/56_e1fio7.mp4",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043357/57_axbrkm.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043365/58_no0ics.jpg",
+      "https://res.cloudinary.com/dic1fjncp/image/upload/q_auto/f_auto/v1781043384/59_p5evnx.jpg",
+    ].map(tuneDeliveryUrl);
+
+    /* =========================================================
+       SEEDED RANDOM & SHUFFLE
+       ========================================================= */
+    function seededRandom(seed) {
+      let value = seed % 2147483647;
+      if (value <= 0) value += 2147483646;
+      return function() {
+        value = (value * 16807) % 2147483647;
+        return (value - 1) / 2147483646;
+      };
+    }
+
+    function shuffleStable(array, rng) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function mediaId(path) {
+      return path.split("/").pop().replace(/\.[^.]+$/, "");
+    }
+
+    /* =========================================================
+       COMPOSITION BUILDER - NEPRŮSTŘELNÁ DEDUPLIKACE
+       Základem je jedna unikátní sekvence. Levá stěna ji začne od
+       indexu 0. Pravá stěna vezme tu samou sekvenci a začne od
+       indexu přesně v její polovině.
+       Zaručeno: Nikdy neuvidíš stejný obsah naproti sobě.
+       ========================================================= */
+    function getBaseSequence(seed) {
+      let images = shuffleStable(files.filter(f => !f.endsWith(".mp4")), seededRandom(seed + 3));
+      let videos = shuffleStable(files.filter(f => f.endsWith(".mp4")), seededRandom(seed + 17));
+
+      // MOBIL: 44 fotek = plnější stěny, pořád s rozumnou rezervou pro plynulost. Bez
+      // cullingu + menší obrazy (níže v CSS) = jelo to plynule. Chceš řidší a
+      // ještě lehčí? Sniž 44 zpět na 40. Chceš plnější? Zvyš opatrně po 2 (ale víc = větší zátěž).
+      if (CONFIG.isMobileCorridor) {
+        images = images.slice(0, 44);
+        videos = videos.slice(0, 2);
+      }
+
+      const ordered = [];
+      let vi = 0, ii = 0;
+      const imgsPerVideo = CONFIG.isMobileCorridor ? 3 : 4;
+      while (ii < images.length || vi < videos.length) {
+        for (let k = 0; k < imgsPerVideo && ii < images.length; k++, ii++) ordered.push(images[ii]);
+        if (vi < videos.length) ordered.push(videos[vi++]);
+      }
+      return ordered;
+    }
+
+    function buildComposition(ordered, seed, side) {
+      const rng = seededRandom(seed);
+      const count = ordered.length;
+      const mobileCorridor = Boolean(CONFIG.isMobileCorridor);
+      const narrow = CONFIG.cardScale < 0.8;
+
+      /* MOBIL: méně lajn = větší a čitelnější obrazy, pokrytí celé výšky
+         stěny od stropu k podlaze (přesně jako na vizualizaci). */
+      const lanes = mobileCorridor
+        ? (side === "right" ? [-8, 6, 20, 34, 48, 62, 76, 90, 104, 116] : [-4, 10, 24, 38, 52, 66, 80, 94, 108, 120])
+        : narrow
+          ? (side === "right" ? [-4, 8, 22, 38, 54, 70, 86, 101] : [-6, 6, 20, 36, 52, 68, 84, 100])
+          : (side === "right" ? [-3, 4, 12, 23, 35, 48, 62, 76, 90, 103] : [-4, 5, 15, 27, 39, 52, 66, 80, 94, 104]);
+
+      const slotSize = CONFIG.blockLength / count;
+      const MAX_JITTER = slotSize * (mobileCorridor ? 0.07 : 0.12);
+
+      const sideOffset = side === "right" ? (slotSize * 0.5) : 0;
+
+      const items = [];
+
+      ordered.forEach((path, index) => {
+        const id = mediaId(path);
+        const isVideo = path.endsWith(".mp4");
+
+        const isHero = mobileCorridor ? (side === "right" ? index % 13 === 3 : index % 14 === 0) : (side === "right" ? index % 7 === 3 : index % 8 === 0);
+        const isTall = side === "right" ? index % 6 === 1 : index % 5 === 2;
+        const isWide = side === "right" ? index % 4 === 2 : index % 5 === 4;
+
+        let width = isHero ? 710 + rng() * 310 : 335 + rng() * 405;
+        let height = isHero ? 495 + rng() * 300 : 290 + rng() * 380;
+
+        width *= isHero ? CONFIG.cardScale * CONFIG.heroScale : CONFIG.cardScale;
+        height *= isHero ? CONFIG.cardScale * CONFIG.heroScale : CONFIG.cardScale;
+
+        if (isVideo) { width *= 1.08; height *= 1.02; }
+        if (isTall)  { height *= mobileCorridor ? 1.05 : 1.2; width *= mobileCorridor ? 0.95 : 0.86; }
+        if (isWide)  { width *= mobileCorridor ? 1.15 : 1.32; height *= mobileCorridor ? 0.92 : 0.82; }
+
+        // Vylepšení vizuality: 15% obyčejných fotek je náhodně o 35 % větších
+        const isSlightlyLarger = !isVideo && !isHero && !isTall && !isWide && (rng() > 0.85);
+        if (isSlightlyLarger) {
+          width *= 1.35;
+          height *= 1.35;
+        }
+
+        width  = Math.round(Math.min(width,  mobileCorridor ? 620 : 1080));
+        height = Math.round(Math.min(height, mobileCorridor ? 660 : 860));
+
+        const lane = lanes[(index * 5 + Math.floor(rng() * lanes.length)) % lanes.length];
+        const laneJitter = mobileCorridor ? 2.1 : 5;
+        const top  = Math.max(-8, Math.min(108, lane + (rng() * laneJitter * 2 - laneJitter)));
+
+        const jitter = (rng() - 0.5) * 2 * MAX_JITTER;
+        const left = (sideOffset + index * slotSize + jitter + CONFIG.blockLength * 4) % CONFIG.blockLength;
+
+        const z      = mobileCorridor
+          ? Math.round(rng() * 56 - 48)          /* -48..+8 px: karty couvají DO stěny, nepřesahují střed */
+          : Math.round(rng() * 270 - 135);
+        const sideLean = mobileCorridor ? (side === "left" ? -0.5 : 0.5) : 0;
+        const rotate = (sideLean + rng() * (mobileCorridor ? 1.4 : 4.25) - (mobileCorridor ? 0.7 : 2.125)).toFixed(2);
+        const zIndex = Math.round(1000 + z + index);
+
+        items.push({ id, path, isVideo, width, height, top, left, z, rotate, zIndex });
+      });
+      return items;
+    }
+
+    /* =========================================================
+       DOM GENERATION
+       ========================================================= */
+    function mediaMarkup(item) {
+      if (item.isVideo) {
+        return `<video class="t-media t-video" data-src="${item.path}" muted defaultMuted loop playsinline webkit-playsinline preload="none" disablepictureinpicture controlslist="nodownload noplaybackrate noremoteplayback"></video>`;
+      }
+      return `<img class="t-media" data-src="${item.path}" alt="" decoding="async" />`;
+    }
+
+    function generateTunnel(trackId, composition, flipMedia = false) {
+      const track = document.getElementById(trackId);
+      let html = "";
+      for (let clone = 0; clone < CONFIG.cloneCount; clone++) {
+        composition.forEach(item => {
+          // Kopie na 0,1,2 délkách bloku → vždy je pokryté i POPŘEDÍ těsně
+          // před kamerou. Dřív chyběla kopie na pozici 0, takže se popředí
+          // při přetočení vyprázdnilo = ten „záraz a skok na začátek".
+          const cloneLeft = item.left + clone * CONFIG.blockLength;
+          const flip = flipMedia ? " scaleX(-1)" : "";
+          html += `<article class="t-card" data-left="${cloneLeft}" data-media-id="${item.id}" data-video="${item.isVideo ? 1 : 0}" style="width:${item.width}px;height:auto;top:${item.top}vh;left:${cloneLeft}px;z-index:${item.zIndex};transform:translateY(-50%) translateZ(${item.z}px) rotateZ(${item.rotate}deg)${flip};">${mediaMarkup(item)}</article>`;
+        });
+      }
+      track.innerHTML = html;
+    }
+
+    // APLIKACE MATEMATICKÉ DEDUPLIKACE
+    const baseOrdered = getBaseSequence(CONFIG.leftSeed);
+    const halfCount = Math.floor(baseOrdered.length / 2);
+    const rightOrdered = [...baseOrdered.slice(halfCount), ...baseOrdered.slice(0, halfCount)];
+
+    const leftComposition  = buildComposition(baseOrdered, CONFIG.leftSeed, "left");
+    const rightComposition = buildComposition(rightOrdered, CONFIG.rightSeed, "right");
+
+    generateTunnel("tunnel-track-left",  leftComposition,  false);
+    generateTunnel("tunnel-track-right", rightComposition, true);
+
+    const tracks = [
+      document.getElementById("tunnel-track-left"),
+      document.getElementById("tunnel-track-right"),
+    ];
+
+    /* =========================================================
+       MEDIA ENTRY REGISTRIES
+       ========================================================= */
+    const imageEntries = [...document.querySelectorAll("img.t-media")].map(img => {
+      const card = img.closest(".t-card");
+      return {
+        img, card,
+        src: img.dataset.src, left: Number(card.dataset.left),
+        side: card.closest("#tunnel-track-right") ? "right" : "left",
+        id: card.dataset.mediaId,
+        prepared: false,
+      };
+    });
+
+    const videoEntries = [...document.querySelectorAll(".t-video")].map(video => {
+      const card = video.closest(".t-card");
+      return {
+        video, card,
+        src: video.dataset.src, left: Number(card.dataset.left),
+        side: card.closest("#tunnel-track-right") ? "right" : "left",
+        id: card.dataset.mediaId,
+        prepared: false, playing: false, wantsPlay: false, retryTimer: null,
+      };
+    });
+
+    /* =========================================================
+       OŘEZÁVÁNÍ KARET (jen mobil) — KLÍČ K PLYNULOSTI
+       Telefon neuhlídá stovky kartiček ve 3D najednou → seká se.
+       Řešení: karty, které jsou hluboko v tunelu (a stejně schované
+       za tmou) nebo už za kamerou, dočasně přestaneme kreslit
+       (display:none). Obrázek ZŮSTANE načtený v paměti, takže když
+       se karta zase přiblíží, naskočí OKAMŽITĚ — žádné bliknutí ani
+       znovunačítání. Blízké stěny zůstávají celé a plné.
+       Hranice se řídí čísly cullFar / cullNear v profilu mobilu výše.
+       Na PC se NEPOUŽÍVÁ (gate isMobileCorridor) → desktop beze změny.
+       ========================================================= */
+    const cullCards = (CONFIG.isMobileCorridor)
+      ? [...imageEntries, ...videoEntries].map(e => ({ card: e.card, left: e.left, shown: true }))
+      : [];
+    const CULL_NEAR = CONFIG.cullNear ?? -700;
+    const CULL_FAR  = CONFIG.cullFar  ?? 4800;
+
+    function cullVisibleCards() {
+      if (!CONFIG.isMobileCorridor) return;
+      for (let i = 0; i < cullCards.length; i++) {
+        const c = cullCards[i];
+        const p = effectivePos(c.left);
+        const visible = (p >= CULL_NEAR && p <= CULL_FAR);
+        if (visible !== c.shown) {
+          c.card.style.display = visible ? "" : "none";
+          c.shown = visible;
+        }
+      }
+    }
+
+    /* =========================================================
+       SCROLL STATE
+       ========================================================= */
+    let scrollPos = 0;
+    let scrollVel = 0;
+    let scrollRendered = 0;
+    let currentMovement = 0;
+    let rafId = null;
+    let mediaManageScheduled = false;
+    let lastManagedAt = -9999;
+    const MANAGE_DELTA = 140;
+
+    const LERP = 0.14;
+    const FRICTION = 0.86;
+
+    function clampScroll(v) {
+      const max = CONFIG.blockLength * 1000;
+      return ((v % max) + max) % max;
+    }
+
+    function effectivePos(left) {
+      return left - CONFIG.blockLength - currentMovement;
+    }
+
+    /* =========================================================
+       IMAGE MANAGEMENT - OCHRANNÉ PÁSMO PROTI BLIKÁNÍ + ŠETŘENÍ PAMĚTI
+       Klíč: obrazy v ochranném pásmu (ty co vidíš) se NIKDY neuvolní,
+       takže nezmizí ani neproblikávají. Daleko mimo obraz se uvolní,
+       aby nepadla paměť.
+       ========================================================= */
+    function showMedia(el) {
+      el.style.visibility = "";
+      requestAnimationFrame(() => el.classList.add("is-visible"));
+    }
+
+    function hideMedia(el) {
+      el.classList.remove("is-visible");
+    }
+
+    function prepareImage(entry, eager) {
+      if (entry.prepared) return;
+      const { img } = entry;
+      img.style.visibility = "";
+      if (eager) { img.loading = "eager"; img.fetchPriority = "high"; }
+
+      const reveal = () => showMedia(img);
+      img.addEventListener("load",  reveal, { once: true });
+      img.addEventListener("error", reveal, { once: true });
+      if (img.getAttribute("src") !== entry.src) img.src = entry.src;
+      if (img.complete && img.naturalWidth > 0) showMedia(img);
+      entry.prepared = true;
+    }
+
+    function releaseImage(entry) {
+      if (!entry.prepared) return;
+      entry.prepared = false;
+      hideMedia(entry.img);
+
+      // Úplné uvolnění zdrojů (prevence pádu iOS Safari), se zpožděním
+      // aby to nebliklo, pokud se obrázek hned znovu nevybere.
+      setTimeout(() => {
+        if (!entry.prepared) {
+          entry.img.removeAttribute("src");
+          entry.img.loading = "lazy";
+          entry.img.fetchPriority = "low";
+        }
+      }, 320);
+    }
+
+    let imagesPersisted = false;
+    function manageImages() {
+      // REŽIM PERSIST: načti všechny obrazy jednou a už je neuvolňuj. Během
+      // scrollu se pak nenačítá ani nedekóduje nic → nulové záseky.
+      if (CONFIG.persistImages) {
+        if (!imagesPersisted) {
+          imageEntries.forEach(entry => prepareImage(entry, false));
+          imagesPersisted = true;
+        }
+        return;
+      }
+
+      const bL = CONFIG.blockLength;
+      const PREPARE_FAR  = CONFIG.imagePrepareDistance;
+      const focus = CONFIG.focusPoint;
+      // Kolik RŮZNÝCH obrazů držet načtených na každé straně (ne kopií!).
+      const mediaPerSide = Math.max(3, Math.floor(CONFIG.maxPreparedImages / 2));
+
+      // "Logická" vzdálenost obrazu od ohniska – počítá i s přetočením o blok,
+      // takže obraz, který se za okamžik přetočí zpět do záběru, má stejně
+      // malou vzdálenost jako ten právě viditelný → načte se PŘEDEM.
+      const logDist = pos => Math.min(
+        Math.abs(pos - focus),
+        Math.abs(pos + bL - focus),
+        Math.abs(pos - bL - focus)
+      );
+
+      // 1) Pro každý unikátní obraz na dané straně najdi jeho nejbližší kopii.
+      const byId = { left: new Map(), right: new Map() };
+      imageEntries.forEach(entry => {
+        const d = logDist(effectivePos(entry.left));
+        const m = byId[entry.side];
+        const cur = m.get(entry.id);
+        if (!cur || d < cur) m.set(entry.id, d);
+      });
+
+      // 2) Vyber nejbližších `mediaPerSide` obrazů na každé straně.
+      const activeIds = { left: new Set(), right: new Set() };
+      ["left", "right"].forEach(side => {
+        [...byId[side].entries()]
+          .sort((a, b) => a[1] - b[1])
+          .slice(0, mediaPerSide)
+          .forEach(([id]) => activeIds[side].add(id));
+      });
+
+      // 3) Načti VŠECHNY kopie aktivních obrazů, které jsou poblíž okna (tedy i
+      //    tu, co se právě chystá přetočit do záběru) → žádný problik při skoku.
+      //    Vše ostatní uvolni, aby nepadla paměť.
+      const KEEP_NEAR = -bL * 0.6;     // i kousek "za kamerou" → připravená kopie pro přetočení
+      const KEEP_FAR  = PREPARE_FAR;
+      imageEntries.forEach(entry => {
+        const pos = effectivePos(entry.left);
+        const active = activeIds[entry.side].has(entry.id);
+        if (active && pos >= KEEP_NEAR && pos <= KEEP_FAR) {
+          prepareImage(entry, false);
+        } else if (entry.prepared) {
+          releaseImage(entry);
+        }
+      });
+    }
+
+    /* =========================================================
+       VIDEO MANAGEMENT - VIDEA SE PŘEHRÁVAJÍ A NEZASTAVUJÍ SE BLÍZKO
+       ========================================================= */
+    let userHasInteracted = false;
+    const pendingPlays = new Set();
+
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(evt =>
+      window.addEventListener(evt, () => {
+        if (userHasInteracted) return;
+        userHasInteracted = true;
+        scheduleMediaManage(true);
+        const queued = [...pendingPlays];
+        pendingPlays.clear();
+        queued.forEach(e => { if (e.wantsPlay) tryPlay(e); });
+      }, { once: true, passive: true })
+    );
+
+    function silenceVideo(v) {
+      v.muted = true; v.defaultMuted = true; v.volume = 0;
+      v.controls = false; v.playsInline = true; v.loop = true;
+      v.removeAttribute("controls");
+    }
+
+    function prepareVideo(entry) {
+      if (entry.prepared) return;
+      const { video, src } = entry;
+      silenceVideo(video);
+      video.src = src;
+      video.preload = CONFIG.isMobileCorridor ? "metadata" : "auto";
+      video.load();
+      const onFrame = () => showMedia(video);
+      video.addEventListener("loadeddata", onFrame, { once: true });
+      video.addEventListener("canplay",    onFrame, { once: true });
+      if (video.readyState >= 2) showMedia(video);
+      entry.prepared = true;
+    }
+
+    function releaseVideo(entry) {
+      if (!entry.prepared) return;
+      clearTimeout(entry.retryTimer); entry.retryTimer = null;
+      entry.wantsPlay = false; entry.playing = false; entry.prepared = false;
+      const { video } = entry;
+      if (!video.paused) video.pause();
+      hideMedia(video);
+      setTimeout(() => {
+        if (!entry.prepared) { video.removeAttribute("src"); video.load(); }
+      }, 350);
+    }
+
+    function tryPlay(entry) {
+      if (!entry.wantsPlay || document.hidden) return;
+      const { video } = entry;
+      silenceVideo(video);
+      if (!entry.prepared) prepareVideo(entry);
+      // Muted+inline video smí na iOS hrát i bez interakce - zkusíme rovnou.
+      const p = video.play();
+      if (p && p.then) {
+        p.then(() => { entry.playing = true; pendingPlays.delete(entry); })
+         .catch(() => {
+           entry.playing = false;
+           // pokud politika prohlížeče zatím nepustila → zkusíme po interakci i po čase
+           pendingPlays.add(entry);
+           if (entry.wantsPlay && !document.hidden) {
+             clearTimeout(entry.retryTimer);
+             entry.retryTimer = setTimeout(() => { entry.retryTimer = null; tryPlay(entry); }, CONFIG.retryIntervalMs);
+           }
+         });
+      }
+    }
+
+    function startVideo(entry) {
+      entry.wantsPlay = true;
+      prepareVideo(entry);
+      if (!entry.playing) tryPlay(entry);
+    }
+
+    function stopVideo(entry, release = false) {
+      clearTimeout(entry.retryTimer); entry.retryTimer = null;
+      entry.wantsPlay = false; entry.playing = false;
+      if (!entry.video.paused) entry.video.pause();
+      if (release) releaseVideo(entry);
+    }
+
+    videoEntries.forEach(entry => {
+      silenceVideo(entry.video);
+      entry.video.addEventListener("playing", () => { entry.playing = true; });
+      entry.video.addEventListener("ended",   () => {
+        entry.playing = false;
+        if (entry.wantsPlay) { try { entry.video.currentTime = 0; } catch(e){} tryPlay(entry); }
+      });
+      entry.video.addEventListener("stalled", () => {
+        if (entry.wantsPlay && !entry.retryTimer)
+          entry.retryTimer = setTimeout(() => { entry.retryTimer = null; tryPlay(entry); }, 700);
+      });
+    });
+
+    let videosPersisted = false;
+    function manageVideos() {
+      const bL = CONFIG.blockLength;
+      const PREPARE_FAR  = CONFIG.videoPrepareDistance;
+      const PLAY_FOCUS = 350;
+      const PLAY_NEAR = -2400, PLAY_FAR = CONFIG.videoPlayDistance;
+      const KEEP_NEAR = -bL * 0.6;   // i kousek za kamerou → připravená kopie pro přetočení
+      const logDist = pos => Math.min(
+        Math.abs(pos - PLAY_FOCUS),
+        Math.abs(pos + bL - PLAY_FOCUS),
+        Math.abs(pos - bL - PLAY_FOCUS)
+      );
+
+      // PERSIST: na mobilu připrav všechna (málo) videa jednou → během scrollu
+      // se žádné video nenačítá, takže nic nezasekne.
+      if (CONFIG.persistVideos && !videosPersisted) {
+        videoEntries.forEach(entry => prepareVideo(entry));
+        videosPersisted = true;
+      }
+
+      // Seskup kopie videí podle id a najdi nejbližší (logicky, i přes přetočení).
+      const byId = new Map();
+      videoEntries.forEach(entry => {
+        const pos = effectivePos(entry.left);
+        let rec = byId.get(entry.id);
+        if (!rec) { rec = { d: Infinity, list: [] }; byId.set(entry.id, rec); }
+        rec.d = Math.min(rec.d, logDist(pos));
+        rec.list.push({ entry, pos });
+      });
+
+      // Aktivní = nejbližší videa (počet dle profilu).
+      const activeIds = new Set(
+        [...byId.entries()].sort((a, b) => a[1].d - b[1].d)
+          .slice(0, CONFIG.maxPlayingVideos).map(e => e[0])
+      );
+
+      byId.forEach((rec, id) => {
+        if (activeIds.has(id)) {
+          // Připrav všechny kopie poblíž okna (i tu, co se chystá přetočit do
+          // záběru) a přehrávej tu nejbližší → při skoku nic neblikne.
+          let best = null;
+          rec.list.forEach(({ entry, pos }) => {
+            if (pos >= KEEP_NEAR && pos <= PREPARE_FAR + 300) prepareVideo(entry);
+            if (pos >= PLAY_NEAR && pos <= PLAY_FAR &&
+                (!best || Math.abs(pos - PLAY_FOCUS) < Math.abs(best.pos - PLAY_FOCUS))) {
+              best = { entry, pos };
+            }
+          });
+          rec.list.forEach(({ entry }) => {
+            if (best && entry === best.entry) startVideo(entry);
+            else stopVideo(entry, false);
+          });
+        } else {
+          // Neaktivní: zastav. Uvolňuj z paměti jen když NEjsme v persist režimu.
+          rec.list.forEach(({ entry, pos }) => {
+            if (!CONFIG.persistVideos && (pos < -4200 || pos > PREPARE_FAR + 2200)) stopVideo(entry, true);
+            else stopVideo(entry, false);
+          });
+        }
+      });
+    }
+
+    /* =========================================================
+       UNIFIED MEDIA MANAGE — throttled
+       ========================================================= */
+    function scheduleMediaManage(force) {
+      if (force) {
+        manageImages(); manageVideos();
+        lastManagedAt = currentMovement;
+        return;
+      }
+      if (mediaManageScheduled) return;
+      if (Math.abs(currentMovement - lastManagedAt) < MANAGE_DELTA) return;
+      mediaManageScheduled = true;
+      requestAnimationFrame(() => {
+        mediaManageScheduled = false;
+        manageImages(); manageVideos();
+        lastManagedAt = currentMovement;
+      });
+    }
+
+    /* =========================================================
+       RENDER LOOP - PLYNULÝ NEKONEČNÝ POSUN
+       ========================================================= */
+    function render() {
+      rafId = null;
+
+      if (Math.abs(scrollVel) > 0.4) {
+        scrollPos = clampScroll(scrollPos + scrollVel);
+        scrollVel *= FRICTION;
+      } else {
+        scrollVel = 0;
+      }
+
+      const diff = scrollPos - scrollRendered;
+      const halfMax = CONFIG.blockLength * 500;
+      const lerpDiff = Math.abs(diff) > halfMax ? diff - Math.sign(diff) * CONFIG.blockLength * 1000 : diff;
+      scrollRendered = clampScroll(scrollRendered + lerpDiff * LERP);
+
+      currentMovement = (scrollRendered * CONFIG.scrollSpeed) % CONFIG.blockLength;
+      const x = (-CONFIG.blockLength - currentMovement).toFixed(2);
+      tracks[0].style.transform = `translate3d(${x}px,0,0)`;
+      tracks[1].style.transform = `translate3d(${x}px,0,0)`;
+
+      if (CONFIG.isMobileCorridor) cullVisibleCards();   /* jen mobil: skryj daleké karty → plynulý pohyb */
+      scheduleMediaManage(false);
+
+      const moving = Math.abs(scrollPos - scrollRendered) > 0.3 || Math.abs(scrollVel) > 0.4;
+      if (moving) {
+        rafId = requestAnimationFrame(render);
+      } else {
+        scrollRendered = scrollPos;
+        scheduleMediaManage(true);
+      }
+    }
+
+    function kickRender() {
+      if (!rafId) rafId = requestAnimationFrame(render);
+    }
+
+    /* =========================================================
+       INPUT HANDLERS
+       ========================================================= */
+    window.addEventListener("wheel", e => {
+      if (document.body.classList.contains("menu-open")) return;
+      e.preventDefault();
+      // Sjednocení jednotek kolečka napříč prohlížeči/myšmi: některé myši
+      // (hlavně na Windows/Chrome/Firefox) hlásí posun v "řádcích" nebo
+      // "stránkách", ne v pixelech jako trackpad na Macu → bez přepočtu to
+      // skáče. Přepočítáme vše na pixely, takže scroll je všude stejně plynulý.
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;                       // řádky → px
+      else if (e.deltaMode === 2) dy *= (window.innerHeight || 800); // stránky → px
+      const delta = Math.abs(dy) > 150 ? Math.sign(dy) * 150 : dy;
+      scrollVel += delta * 0.7;
+      scrollPos = clampScroll(scrollPos + delta * 0.3);
+      kickRender();
+    }, { passive: false });
+
+    let pStartY = null, pLastY = null, pVelY = 0;
+
+    function isUI(target) {
+      return Boolean(target.closest(".nav-panel, .bottom-interface, a, button"));
+    }
+
+    window.addEventListener("pointerdown", e => {
+      if (isUI(e.target)) return;
+      pStartY = e.clientY; pLastY = e.clientY; pVelY = 0;
+    }, { passive: true });
+
+    window.addEventListener("pointermove", e => {
+      if (pStartY === null || document.body.classList.contains("menu-open")) return;
+      const delta = pLastY - e.clientY;
+      if (Math.abs(delta) > 2) {
+        e.preventDefault();
+        pVelY = delta;
+        scrollPos = clampScroll(scrollPos + delta * CONFIG.dragMultiplier);
+        pLastY = e.clientY;
+        kickRender();
+      }
+    }, { passive: false });
+
+    window.addEventListener("pointerup", () => {
+      if (pStartY !== null) { scrollVel += pVelY * CONFIG.dragMultiplier * 0.4; kickRender(); }
+      pStartY = null; pLastY = null; pVelY = 0;
+    });
+    window.addEventListener("pointercancel", () => { pStartY = null; pLastY = null; pVelY = 0; });
+
+    // Pojistka proti nativnímu scrollu / pull-to-refresh na mobilu (reload!)
+    window.addEventListener("touchmove", e => {
+      if (!document.body.classList.contains("menu-open")) e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        document.body.classList.remove("menu-open");
+        menuToggle.setAttribute("aria-expanded", "false");
+        if (floatingAddress) floatingAddress.style.opacity = "1";
+        kickRender();
+        return;
+      }
+      if (document.body.classList.contains("menu-open")) return;
+      const step = 380;
+      if (["ArrowDown","PageDown"," "].includes(e.key)) { scrollPos = clampScroll(scrollPos + step); kickRender(); }
+      if (["ArrowUp","PageUp"].includes(e.key))         { scrollPos = clampScroll(scrollPos - step); kickRender(); }
+    });
+
+    /* =========================================================
+       UI CONTROLS
+       ========================================================= */
+    const preloader      = document.getElementById("preloader");
+    const menuToggle     = document.getElementById("menuToggle");
+    const floatingAddress = document.querySelector(".floating-address");
+
+    menuToggle.addEventListener("click", () => {
+      const open = !document.body.classList.contains("menu-open");
+      document.body.classList.toggle("menu-open", open);
+      menuToggle.setAttribute("aria-expanded", String(open));
+      if (floatingAddress) floatingAddress.style.opacity = open ? "0" : "1";
+      // Při otevřeném menu zastavíme vykreslování chodby A pozastavíme videa
+      // (scéna je stejně schovaná za panelem) → grafika má plné volno na
+      // plynulé vyjetí lišty. Po zavření vše zase naběhne.
+      if (open) {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        videoEntries.forEach(e => stopVideo(e, false));
+      } else {
+        kickRender();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) videoEntries.forEach(e => stopVideo(e, false));
+      else { scheduleMediaManage(true); kickRender(); }
+    });
+
+    /* =========================================================
+       INITIAL IMAGE PRELOAD
+       ========================================================= */
+    function prioritizeInitialImages() {
+      const scored = imageEntries.map(e => ({
+        e, d: Math.abs(effectivePos(e.left) - CONFIG.focusPoint)
+      }));
+      scored.sort((a, b) => a.d - b.d);
+
+      const count = Math.min(CONFIG.initialImageCount * 3, imageEntries.length);
+      scored.slice(0, count).forEach(({ e }, i) => {
+        prepareImage(e, i < CONFIG.initialImageCount);
+      });
+    }
+
+    function waitForImages(entries, timeout = 2500) {
+      if (!entries.length) return Promise.resolve();
+      return Promise.allSettled(entries.map(e => new Promise(resolve => {
+        const img = e.img;
+        if (img.complete && img.naturalWidth > 0) { resolve(); return; }
+        let done = false;
+        const fin = () => { if (!done) { done = true; resolve(); } };
+        img.addEventListener("load",  fin, { once: true });
+        img.addEventListener("error", fin, { once: true });
+        setTimeout(fin, timeout);
+      })));
+    }
+
+    /* =========================================================
+       VIDEO WARMUP
+       ========================================================= */
+    const uniqueVideoPaths = [...new Set(files.filter(f => f.endsWith(".mp4")))];
+    function warmVideoCache() {
+      uniqueVideoPaths.slice(0, CONFIG.warmupCriticalVideos).forEach(src => {
+        const v = document.createElement("video");
+        v.muted = true; v.defaultMuted = true; v.volume = 0;
+        v.src = src; v.preload = "metadata"; v.playsInline = true;
+        v.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px;";
+        document.body.appendChild(v);
+        v.load();
+      });
+    }
+
+    /* =========================================================
+       BOOT SEQUENCE
+       ========================================================= */
+    kickRender();
+    if (CONFIG.isMobileCorridor) cullVisibleCards();   /* jen mobil: hned skryj karty mimo záběr → lehčí start */
+    prioritizeInitialImages();
+    // V režimu persist načti rovnou celou (malou) sadu – ať je vše v paměti
+    // co nejdřív a scroll je pak už jen pohyb.
+    if (CONFIG.persistImages) manageImages();
+
+    // POJISTKA: ať se stane cokoliv (i kdyby paměť média nenačetla),
+    // obrazovka „LOADING" po 3,5 s vždy zmizí a web jede dál.
+    const hardUnblock = setTimeout(() => {
+      preloader.classList.add("is-hidden");
+      scheduleMediaManage(true);
+    }, 3500);
+
+    const bootStart = performance.now();
+    // Počkej jen na pár nejbližších obrazů (ne na celou sadu) → rychlý start.
+    const preparedEntries = imageEntries
+      .filter(e => e.prepared)
+      .sort((a, b) => Math.abs(effectivePos(a.left) - CONFIG.focusPoint) - Math.abs(effectivePos(b.left) - CONFIG.focusPoint))
+      .slice(0, 10);
+
+    waitForImages(preparedEntries).finally(() => {
+      clearTimeout(hardUnblock);
+      const elapsed   = performance.now() - bootStart;
+      const remaining = Math.max(0, CONFIG.preloaderMinimumMs - elapsed);
+      setTimeout(() => {
+        preloader.classList.add("is-hidden");
+        scheduleMediaManage(true);
+        warmVideoCache();
+        // periodický „strážce" médií – i na mobilu, aby videa naskočila
+        // hned po startu i bez scrollu a nikdy nezůstala viset.
+        setInterval(() => scheduleMediaManage(false), CONFIG.isMobileCorridor ? 900 : 1400);
+        kickRender();
+      }, remaining);
+    });
+  </script>
+</body>
+</html>
